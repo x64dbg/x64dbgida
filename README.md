@@ -10,7 +10,7 @@ Copy `x64dbgida.py` to your IDA `plugins` directory.
 
 ### Import (uncompressed) database
 
-Import comments/labels from an uncompressed JSON database in IDA Pro.
+Import comments/labels from an uncompressed x64dbg JSON database in IDA Pro.
 
 ### Export database
 
