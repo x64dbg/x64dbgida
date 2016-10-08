@@ -72,6 +72,35 @@ def do_import():
     print "%d/%d comments imported" % (count, len(comments))
     print "Done!"
 
+    count = 0
+    breakpoints = db.get("breakpoints")
+
+    for breakpoint in breakpoints:
+        types = int(breakpoint["type"])
+        print types
+        if types == 0:
+            cond = BPT_DEFAULT
+            ea = int(breakpoint["address"], 16) + base
+            AddBptEx(ea, 0x1, cond)
+            count += 1
+        elif types == 1:
+            cond = BPT_BRK
+            ea = int(breakpoint["address"], 16) + base
+            AddBptEx(ea, 0x1, cond)
+            count += 1
+        elif types == 2:
+            cond = BPT_MSGS
+            ea = int(breakpoint["address"], 16) + base
+            AddBptEx(ea, 0x1, cond)
+            count += 1
+        else:
+            pass
+
+    print "%d/%d Breakpoints imported" % (count, len(breakpoints))
+
+
+
+
 
 def do_export():
     db = {}
@@ -90,6 +119,13 @@ def do_export():
         "module": module,
         "address": "0x%X" % (ea - base)
     } for (ea, name) in Names()]
+
+    db["breakpoints"] = [{
+        "address": "0x%X" % (ea - base),
+        "enabled": True,
+        "type": 0,
+        "module": module
+    } for (ea, name) in Breakpoints()]
 
     db["comments"] = [{
         "text": comment.replace("{", "{{").replace("}", "}}"),
@@ -124,6 +160,7 @@ class x64dbg_plugin_t(idaapi.plugin_t):
             idaapi.add_menu_item("Edit/x64dbgida/",
                                  "Import (uncompressed) database", "", 0,
                                  self.importdb, None)
+
 
         return idaapi.PLUGIN_OK
 
