@@ -1,6 +1,15 @@
-import idaapi, idautils, json
+import idaapi, idautils, json, traceback
 
 initialized = False
+BPNORMAL = 0
+BPHARDWARE = 1
+UE_HARDWARE_EXECUTE = 4
+UE_HARDWARE_WRITE = 5
+UE_HARDWARE_READWRITE = 6
+UE_HARDWARE_SIZE_1 = 7
+UE_HARDWARE_SIZE_2 = 8
+UE_HARDWARE_SIZE_4 = 9
+UE_HARDWARE_SIZE_8 = 10
 
 
 def Comments():
@@ -20,6 +29,31 @@ def Comments():
             lastcmt = cmt
             if not skip:
                 yield (ea, cmt)
+
+
+def Breakpoints():
+    count = GetBptQty()
+    for i in range(0, count):
+        ea = GetBptEA(i)
+        bpt = idaapi.bpt_t()
+        if not idaapi.get_bpt(ea, bpt):
+            continue
+        if bpt.type & BPT_SOFT != 0:
+            yield (ea, BPNORMAL, 0, Word(ea))
+        else:
+            bptype = BPNORMAL if bpt.type == BPT_DEFAULT else BPHARDWARE
+            hwtype = {
+                BPT_WRITE: UE_HARDWARE_WRITE,
+                BPT_RDWR: UE_HARDWARE_READWRITE,
+                BPT_EXEC: UE_HARDWARE_EXECUTE
+            }[bpt.type]
+            hwsize = {
+                1: UE_HARDWARE_SIZE_1,
+                2: UE_HARDWARE_SIZE_2,
+                4: UE_HARDWARE_SIZE_4,
+                8: UE_HARDWARE_SIZE_8,
+            }[bpt.size]
+            yield (ea, bptype, (hwtype << 4 | hwsize), 0)
 
 
 def get_file_mask():
@@ -55,7 +89,7 @@ def do_import():
             count += 1
         except:
             pass
-    print "%d/%d labels imported" % (count, len(labels))
+    print "%d/%d label(s) imported" % (count, len(labels))
 
     count = 0
     comments = db.get("comments", [])
@@ -69,37 +103,48 @@ def do_import():
             count += 1
         except:
             pass
-    print "%d/%d comments imported" % (count, len(comments))
-    print "Done!"
+    print "%d/%d comment(s) imported" % (count, len(comments))
 
     count = 0
-    breakpoints = db.get("breakpoints")
-
+    breakpoints = db.get("breakpoints", [])
     for breakpoint in breakpoints:
-        types = int(breakpoint["type"])
-        print types
-        if types == 0:
-            cond = BPT_DEFAULT
+        try:
+            if breakpoint["module"] != module:
+                continue
             ea = int(breakpoint["address"], 16) + base
-            AddBptEx(ea, 0x1, cond)
-            count += 1
-        elif types == 1:
-            cond = BPT_BRK
-            ea = int(breakpoint["address"], 16) + base
-            AddBptEx(ea, 0x1, cond)
-            count += 1
-        elif types == 2:
-            cond = BPT_MSGS
-            ea = int(breakpoint["address"], 16) + base
-            AddBptEx(ea, 0x1, cond)
-            count += 1
-        else:
+            bptype = breakpoint["type"]
+            if bptype == BPNORMAL:
+                count += 1
+                AddBptEx(ea, 1, BPT_DEFAULT)
+            elif bptype == BPHARDWARE:
+                titantype = int(breakpoint["titantype"], 16)
+                hwtype = (titantype >> 4) & 0xF
+                if hwtype == UE_HARDWARE_EXECUTE:
+                    hwtype = BPT_EXEC
+                elif hwtype == UE_HARDWARE_WRITE:
+                    hwtype = BPT_WRITE
+                elif hwtype == UE_HARDWARE_READWRITE:
+                    hwtype = BPT_RDWR
+                else:
+                    continue
+                hwsize = titantype & 0xF
+                if hwsize == UE_HARDWARE_SIZE_1:
+                    hwsize = 1
+                elif hwsize == UE_HARDWARE_SIZE_2:
+                    hwsize = 2
+                elif hwsize == UE_HARDWARE_SIZE_4:
+                    hwsize = 4
+                elif hwsize == UE_HARDWARE_SIZE_8:
+                    hwsize = 8
+                else:
+                    continue
+                count += 1
+                AddBptEx(ea, hwsize, hwtype)
+        except:
             pass
+    print "%d/%d breakpoint(s) imported" % (count, len(breakpoints))
 
-    print "%d/%d Breakpoints imported" % (count, len(breakpoints))
-
-
-
+    print "Done!"
 
 
 def do_export():
@@ -119,13 +164,7 @@ def do_export():
         "module": module,
         "address": "0x%X" % (ea - base)
     } for (ea, name) in Names()]
-
-    db["breakpoints"] = [{
-        "address": "0x%X" % (ea - base),
-        "enabled": True,
-        "type": 0,
-        "module": module
-    } for (ea, name) in Breakpoints()]
+    print "%d label(s) exported" % len(db["labels"])
 
     db["comments"] = [{
         "text": comment.replace("{", "{{").replace("}", "}}"),
@@ -133,6 +172,17 @@ def do_export():
         "module": module,
         "address": "0x%X" % (ea - base)
     } for (ea, comment) in Comments()]
+    print "%d comment(s) exported" % len(db["comments"])
+
+    db["breakpoints"] = [{
+        "address": "0x%X" % (ea - base),
+        "enabled": True,
+        "type": bptype,
+        "titantype": "0x%X" % titantype,
+        "oldbytes": "0x%X" % oldbytes,
+        "module": module,
+    } for (ea, bptype, titantype, oldbytes) in Breakpoints()]
+    print "%d breakpoint(s) exported" % len(db["breakpoints"])
 
     with open(file, "w") as outfile:
         json.dump(db, outfile, indent=1)
@@ -161,7 +211,6 @@ class x64dbg_plugin_t(idaapi.plugin_t):
                                  "Import (uncompressed) database", "", 0,
                                  self.importdb, None)
 
-
         return idaapi.PLUGIN_OK
 
     def run(self, arg):
@@ -174,12 +223,14 @@ class x64dbg_plugin_t(idaapi.plugin_t):
         try:
             do_import()
         except:
+            traceback.print_exc()
             print "Error importing database..."
 
     def exportdb(self):
         try:
             do_export()
         except:
+            traceback.print_exc()
             print "Error exporting database..."
 
     def about(self):
