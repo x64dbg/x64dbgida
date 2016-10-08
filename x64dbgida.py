@@ -86,7 +86,6 @@ def do_import():
 
 
 
-
 def do_export():
     db = {}
     module = idaapi.get_root_filename()
