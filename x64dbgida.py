@@ -84,19 +84,7 @@ def do_import():
             pass
     print "%d/%d Breakpoints imported" % (count, len(breakpoints))
 
-    count = 0
-    comments = db.get("comments", [])
-    for comment in comments:
-        try:
-            if comment["module"] != module:
-                continue
-            ea = int(comment["address"], 16) + base
-            name = comment["text"]
-            MakeRptCmt(ea, str(name))
-            count += 1
-        except:
-            pass
-    print "%d/%d comments imported" % (count, len(comments))
+
 
 
 def do_export():
