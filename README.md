@@ -14,4 +14,4 @@ Import comments/labels/breakpoints from an uncompressed x64dbg JSON database in 
 
 ### Export database
 
-Export comments/labels to a JSON database that can be loaded by x64dbg.
+Export comments/labels/breakpoints to a JSON database that can be loaded by x64dbg.
