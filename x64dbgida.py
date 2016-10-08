@@ -121,11 +121,11 @@ def do_export():
     } for (ea, name) in Names()]
 
     db["breakpoints"] = [{
-        "text": name,
-        "manual": False,
-        "module": module,
-        "address": "0x%X" % (ea - base)
-    } for (ea, name) in Names()]
+        "address": "0x%X" % (ea - base),
+        "enabled": True,
+        "type": 0,
+        "module": module
+    } for (ea, name) in Breakpoints()]
 
     db["comments"] = [{
         "text": comment.replace("{", "{{").replace("}", "}}"),
