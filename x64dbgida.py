@@ -73,16 +73,32 @@ def do_import():
     print "Done!"
 
     count = 0
-    breakpoints = db.get("breakpoints", ["module"])
+    breakpoints = db.get("breakpoints")
+
     for breakpoint in breakpoints:
-        try:
+        types = int(breakpoint["type"])
+        print types
+        if types == 0:
+            cond = BPT_DEFAULT
             ea = int(breakpoint["address"], 16) + base
-            SetDebuggerOptions(DOPT_BPT_MSGS)
-            AddBptEx(ea, 0x1, BPT_DEFAULT)
+            AddBptEx(ea, 0x1, cond)
             count += 1
-        except:
+        elif types == 1:
+            cond = BPT_BRK
+            ea = int(breakpoint["address"], 16) + base
+            AddBptEx(ea, 0x1, cond)
+            count += 1
+        elif types == 2:
+            cond = BPT_MSGS
+            ea = int(breakpoint["address"], 16) + base
+            AddBptEx(ea, 0x1, cond)
+            count += 1
+        else:
             pass
+
     print "%d/%d Breakpoints imported" % (count, len(breakpoints))
+
+
 
 
 
