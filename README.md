@@ -6,6 +6,8 @@ Official x64dbg plugin for IDA Pro.
 
 Copy `x64dbgida.py` to your IDA `plugins` directory.
 
+*Notice*: On older versions of IDA make sure to update IDAPython to the latest release with Python 2.7, see [RELEASES](https://github.com/idapython/src/tree/build-1.7.2/RELEASES)
+
 ## Menu options
 
 ### Import (uncompressed) database
