@@ -203,13 +203,21 @@ class x64dbg_plugin_t(idaapi.plugin_t):
 
         if initialized == False:
             initialized = True
-            idaapi.add_menu_item("Edit/x64dbgida/", "About", "", 0, self.about,
-                                 None)
-            idaapi.add_menu_item("Edit/x64dbgida/", "Export database", "", 0,
-                                 self.exportdb, None)
-            idaapi.add_menu_item("Edit/x64dbgida/",
-                                 "Import (uncompressed) database", "", 0,
-                                 self.importdb, None)
+            menu = idaapi.add_menu_item("Edit/x64dbgida/", "About", "", 0,
+                                        self.about, None)
+            if menu is not None:
+                idaapi.add_menu_item("Edit/x64dbgida/", "Export database", "",
+                                     0, self.exportdb, None)
+                idaapi.add_menu_item("Edit/x64dbgida/",
+                                     "Import (uncompressed) database", "", 0,
+                                     self.importdb, None)
+            elif idaapi.IDA_SDK_VERSION < 680:
+                idaapi.add_menu_item("File/Produce file/",
+                                     "Export x64dbg database", "", 0,
+                                     self.exportdb, None)
+                idaapi.add_menu_item("File/Load file/",
+                                     "Import x64dbg database", "", 0,
+                                     self.importdb, None)
 
         return idaapi.PLUGIN_OK
 
