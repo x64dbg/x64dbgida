@@ -65,7 +65,7 @@ def get_file_mask():
 
 def do_import():
     db = {}
-    module = idaapi.get_root_filename()
+    module = idaapi.get_root_filename().lower()
     base = idaapi.get_imagebase()
 
     file = AskFile(0, "x64dbg database|%s" % get_file_mask(),
@@ -149,7 +149,7 @@ def do_import():
 
 def do_export():
     db = {}
-    module = idaapi.get_root_filename()
+    module = idaapi.get_root_filename().lower()
     base = idaapi.get_imagebase()
 
     file = AskFile(1, "x64dbg database|%s" % get_file_mask(),
