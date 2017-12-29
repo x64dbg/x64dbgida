@@ -333,12 +333,6 @@ class x64dbg_plugin_t(idaapi.plugin_t):
 
         return idaapi.PLUGIN_KEEP
 
-    def set_color(self, color):
-        self.color = color
-        self.settings.user['color'] = color
-        global HIGHLIGHT_COLOR
-        HIGHLIGHT_COLOR = color
-        self.clear_all_highlights()
 
     def run(self, arg):
         self.about()
