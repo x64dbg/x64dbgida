@@ -1,4 +1,10 @@
-import idaapi, idautils, json, traceback
+if idaapi.IDA_SDK_VERSION <= 695:
+    import idaapi, idautils, json, traceback
+if idaapi.IDA_SDK_VERSION >= 700:
+    import ida_idaapi, ida_kernwin, json, traceback
+    from idaapi import *
+else:
+    pass
 
 initialized = False
 BPNORMAL = 0
@@ -188,6 +194,62 @@ def do_export():
         json.dump(db, outfile, indent=1)
     print "Done!"
 
+try: #we try because of ida versions below 6.8, and write action handlers below
+    class AboutHandler(idaapi.action_handler_t):
+        def __init__(self):
+            idaapi.action_handler_t.__init__(self)
+
+        # Say hello when invoked.
+        def activate(self, ctx):
+            a = x64dbg_plugin_t()
+            a.about()
+            return 1
+
+        # This action is always available.
+        def update(self, ctx):
+            return idaapi.AST_ENABLE_ALWAYS
+except AttributeError:
+    pass
+
+
+try:
+    class EksportHandler(idaapi.action_handler_t):
+        def __init__(self):
+            idaapi.action_handler_t.__init__(self)
+
+        # Say hello when invoked.
+        def activate(self, ctx):
+            b = x64dbg_plugin_t()
+            b.exportdb()
+            return 1
+
+        # This action is always available.
+        def update(self, ctx):
+            return idaapi.AST_ENABLE_ALWAYS
+
+            def update(self, ctx):
+                return idaapi.AST_ENABLE_ALWAYS
+except AttributeError:
+    pass
+
+
+try:
+    class ImportHandler(idaapi.action_handler_t):
+        def __init__(self):
+            idaapi.action_handler_t.__init__(self)
+
+        # Say hello when invoked.
+        def activate(self, ctx):
+            c = x64dbg_plugin_t()
+            c.importdb()
+            return 1
+
+        # This action is always available.
+        def update(self, ctx):
+            return idaapi.AST_ENABLE_ALWAYS
+except AttributeError:
+    pass
+
 
 class x64dbg_plugin_t(idaapi.plugin_t):
     comment = "Official x64dbg plugin for IDA Pro"
@@ -203,9 +265,9 @@ class x64dbg_plugin_t(idaapi.plugin_t):
 
         if initialized == False:
             initialized = True
-            menu = idaapi.add_menu_item("Edit/x64dbgida/", "About", "", 0,
+            if idaapi.IDA_SDK_VERSION <= 695 and idaapi.IDA_SDK_VERSION >= 680:
+                menu = idaapi.add_menu_item("Edit/x64dbgida/", "About", "", 0,
                                         self.about, None)
-            if menu is not None:
                 idaapi.add_menu_item("Edit/x64dbgida/", "Export database", "",
                                      0, self.exportdb, None)
                 idaapi.add_menu_item("Edit/x64dbgida/",
@@ -219,10 +281,63 @@ class x64dbg_plugin_t(idaapi.plugin_t):
                                      "Import x64dbg database", "", 0,
                                      self.importdb, None)
 
-        return idaapi.PLUGIN_OK
+            if idaapi.IDA_SDK_VERSION >= 700:
+                #populating action menus
+                action_desc = idaapi.action_desc_t(
+                    'my:aboutaction',  # The action name. This acts like an ID and must be unique
+                    'About!',  # The action text.
+                    AboutHandler(),  # The action handler.
+                    '',  # Optional: the action shortcut
+                    'About X64dbg ida',  # Optional: the action tooltip (available in menus/toolbar)
+                    )  # Optional: the action icon (shows when in menus/toolbars) use numbers 1-255
+
+                # Register the action
+                idaapi.register_action(action_desc)
+                idaapi.attach_action_to_menu(
+                    'Edit/x64dbgida/',
+                    'my:aboutaction',
+                    idaapi.SETMENU_APP)
+
+                action_desc = idaapi.action_desc_t(
+                    'my:eksportaction',
+                    'Export x64dbg database',
+                    EksportHandler(),
+                    '',
+                    'Export x64dbg database',
+                    )
+
+                # Register the action
+                idaapi.register_action(action_desc)
+                idaapi.attach_action_to_menu(
+                    'Edit/x64dbgida/',
+                    'my:eksportaction',
+                    idaapi.SETMENU_APP)
+
+                action_desc = idaapi.action_desc_t(
+                    'my:importaction',
+                    'Import (uncompressed) database',
+                    ImportHandler(),
+                    '',
+                    'Import (uncompressed) database',
+                    )
+
+                # Register the action
+                idaapi.register_action(action_desc)
+                idaapi.attach_action_to_menu(
+                    'Edit/x64dbgida/',
+                    'my:importaction',
+                    idaapi.SETMENU_APP)
+
+            else:
+                pass
+
+        return idaapi.PLUGIN_KEEP
+
 
     def run(self, arg):
         self.about()
+        pass
+
 
     def term(self):
         return
