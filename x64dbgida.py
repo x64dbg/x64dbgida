@@ -1,8 +1,15 @@
+import idaapi
 if idaapi.IDA_SDK_VERSION <= 695:
-    import idaapi, idautils, json, traceback
+    import idautils
+    import json
+    import traceback
 if idaapi.IDA_SDK_VERSION >= 700:
-    import ida_idaapi, ida_kernwin, json, traceback
-    from idaapi import *
+    import ida_idaapi
+    import ida_kernwin
+    import json
+    import traceback
+    from idc import *
+    from idautils import *
 else:
     pass
 
