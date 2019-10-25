@@ -13,6 +13,11 @@ if idaapi.IDA_SDK_VERSION >= 700:
 else:
     pass
 
+try:
+	Askfile
+except NameError:
+	AskFile = ida_kernwin.ask_file
+
 initialized = False
 BPNORMAL = 0
 BPHARDWARE = 1
