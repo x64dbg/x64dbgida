@@ -6,12 +6,24 @@ if idaapi.IDA_SDK_VERSION <= 695:
 if idaapi.IDA_SDK_VERSION >= 700:
     import ida_idaapi
     import ida_kernwin
+    import ida_dbg
     import json
     import traceback
     from idc import *
     from idautils import *
 else:
     pass
+	
+try:
+	Askfile
+except NameError:
+	AskFile = ida_kernwin.ask_file
+	MinEA = lambda : get_inf_attr(INF_MIN_EA)
+	MaxEA = lambda : get_inf_attr(INF_MAX_EA) 
+	Comment = lambda x : get_cmt(x, 0)
+	RptCmt = lambda x : get_cmt(x, 1)
+	GetBptQty = ida_dbg.get_bpt_qty
+	GetBptEA = idc.get_bpt_ea 
 
 try:
 	Askfile
