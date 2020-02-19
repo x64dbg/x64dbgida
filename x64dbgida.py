@@ -102,7 +102,7 @@ def do_import():
                    "Import database")
     if not file:
         return
-    print "Importing database %s" % file
+    print("Importing database {}").format(file)
 
     with open(file) as dbdata:
         db = json.load(dbdata)
@@ -119,7 +119,7 @@ def do_import():
             count += 1
         except:
             pass
-    print "%d/%d label(s) imported" % (count, len(labels))
+    print("{:d}/{:d} label(s) imported".format(count, len(labels)))
 
     count = 0
     comments = db.get("comments", [])
@@ -133,7 +133,7 @@ def do_import():
             count += 1
         except:
             pass
-    print "%d/%d comment(s) imported" % (count, len(comments))
+    print("{:d}/{:d} comment(s) imported".format(count, len(comments)))
 
     count = 0
     breakpoints = db.get("breakpoints", [])
@@ -172,9 +172,9 @@ def do_import():
                 AddBptEx(ea, hwsize, hwtype)
         except:
             pass
-    print "%d/%d breakpoint(s) imported" % (count, len(breakpoints))
+    print("{:d}/{:d} breakpoint(s) imported".format(count, len(breakpoints)))
 
-    print "Done!"
+    print("Done!")
 
 
 def do_export():
@@ -186,7 +186,7 @@ def do_export():
                    "Export database")
     if not file:
         return
-    print "Exporting database %s" % file
+    print("Exporting database {}".format(file))
 
     db["labels"] = [{
         "text": name,
@@ -194,7 +194,7 @@ def do_export():
         "module": module,
         "address": "0x%X" % (ea - base)
     } for (ea, name) in Names()]
-    print "%d label(s) exported" % len(db["labels"])
+    print("{:d} label(s) exported".format(len(db["labels"])))
 
     db["comments"] = [{
         "text": comment.replace("{", "{{").replace("}", "}}"),
@@ -202,7 +202,7 @@ def do_export():
         "module": module,
         "address": "0x%X" % (ea - base)
     } for (ea, comment) in Comments()]
-    print "%d comment(s) exported" % len(db["comments"])
+    print("{:d} comment(s) exported".format(len(db["comments"])))
 
     db["breakpoints"] = [{
         "address": "0x%X" % (ea - base),
@@ -212,11 +212,11 @@ def do_export():
         "oldbytes": "0x%X" % oldbytes,
         "module": module,
     } for (ea, bptype, titantype, oldbytes) in Breakpoints()]
-    print "%d breakpoint(s) exported" % len(db["breakpoints"])
+    print("{:d} breakpoint(s) exported".format(len(db["breakpoints"])))
 
     with open(file, "w") as outfile:
         json.dump(db, outfile, indent=1)
-    print "Done!"
+    print("Done!")
 
 
 try:  # we try because of ida versions below 6.8, and write action handlers below
@@ -370,19 +370,19 @@ class x64dbg_plugin_t(idaapi.plugin_t):
             do_import()
         except:
             traceback.print_exc()
-            print "Error importing database..."
+            print("Error importing database...")
 
     def exportdb(self):
         try:
             do_export()
         except:
             traceback.print_exc()
-            print "Error exporting database..."
+            print("Error exporting database...")
 
     def about(self):
-        print self.wanted_name + " " + self.version
-        print self.comment
-        print self.website
+        print("{} {}".format(self.wanted_name, self.version))
+        print(self.comment)
+        print(self.website)
 
 
 def PLUGIN_ENTRY():
