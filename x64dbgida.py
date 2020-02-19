@@ -13,22 +13,22 @@ if idaapi.IDA_SDK_VERSION >= 700:
     from idautils import *
 else:
     pass
-	
-try:
-	Askfile
-except NameError:
-	AskFile = ida_kernwin.ask_file
-	MinEA = lambda : get_inf_attr(INF_MIN_EA)
-	MaxEA = lambda : get_inf_attr(INF_MAX_EA) 
-	Comment = lambda x : get_cmt(x, 0)
-	RptCmt = lambda x : get_cmt(x, 1)
-	GetBptQty = ida_dbg.get_bpt_qty
-	GetBptEA = idc.get_bpt_ea 
 
 try:
-	Askfile
+    Askfile
 except NameError:
-	AskFile = ida_kernwin.ask_file
+    AskFile = ida_kernwin.ask_file
+    MinEA = lambda: get_inf_attr(INF_MIN_EA)
+    MaxEA = lambda: get_inf_attr(INF_MAX_EA)
+    Comment = lambda x: get_cmt(x, 0)
+    RptCmt = lambda x: get_cmt(x, 1)
+    GetBptQty = ida_dbg.get_bpt_qty
+    GetBptEA = idc.get_bpt_ea
+
+try:
+    Askfile
+except NameError:
+    AskFile = ida_kernwin.ask_file
 
 initialized = False
 BPNORMAL = 0
@@ -218,7 +218,8 @@ def do_export():
         json.dump(db, outfile, indent=1)
     print "Done!"
 
-try: #we try because of ida versions below 6.8, and write action handlers below
+
+try:  # we try because of ida versions below 6.8, and write action handlers below
     class AboutHandler(idaapi.action_handler_t):
         def __init__(self):
             idaapi.action_handler_t.__init__(self)
@@ -287,11 +288,11 @@ class x64dbg_plugin_t(idaapi.plugin_t):
     def init(self):
         global initialized
 
-        if initialized == False:
+        if initialized is False:
             initialized = True
             if idaapi.IDA_SDK_VERSION <= 695 and idaapi.IDA_SDK_VERSION >= 680:
                 menu = idaapi.add_menu_item("Edit/x64dbgida/", "About", "", 0,
-                                        self.about, None)
+                                            self.about, None)
                 idaapi.add_menu_item("Edit/x64dbgida/", "Export database", "",
                                      0, self.exportdb, None)
                 idaapi.add_menu_item("Edit/x64dbgida/",
@@ -306,7 +307,7 @@ class x64dbg_plugin_t(idaapi.plugin_t):
                                      self.importdb, None)
 
             if idaapi.IDA_SDK_VERSION >= 700:
-                #populating action menus
+                # populating action menus
                 action_desc = idaapi.action_desc_t(
                     'my:aboutaction',  # The action name. This acts like an ID and must be unique
                     'About!',  # The action text.
@@ -357,11 +358,9 @@ class x64dbg_plugin_t(idaapi.plugin_t):
 
         return idaapi.PLUGIN_KEEP
 
-
     def run(self, arg):
         self.about()
         pass
-
 
     def term(self):
         return
