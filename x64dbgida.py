@@ -1,34 +1,31 @@
 import idaapi
-if idaapi.IDA_SDK_VERSION <= 695:
+# in the future, maybe change for
+# ida_idp.IDP_INTERFACE_VERSION >= 700
+if idaapi.IDA_SDK_VERSION >= 700:
+    import ida_bytes
+    import ida_dbg
+    import ida_ida
+    import ida_kernwin
+    import ida_name
     import idautils
     import json
     import traceback
-if idaapi.IDA_SDK_VERSION >= 700:
-    import ida_idaapi
-    import ida_kernwin
-    import ida_dbg
-    import json
-    import traceback
     from idc import *
-    from idautils import *
 else:
-    pass
-	
-try:
-	Askfile
-except NameError:
-	AskFile = ida_kernwin.ask_file
-	MinEA = lambda : get_inf_attr(INF_MIN_EA)
-	MaxEA = lambda : get_inf_attr(INF_MAX_EA) 
-	Comment = lambda x : get_cmt(x, 0)
-	RptCmt = lambda x : get_cmt(x, 1)
-	GetBptQty = ida_dbg.get_bpt_qty
-	GetBptEA = idc.get_bpt_ea 
+    print("Use version 1.0")
 
-try:
-	Askfile
-except NameError:
-	AskFile = ida_kernwin.ask_file
+
+def MinEA(): return get_inf_attr(ida_ida.INF_MIN_EA)
+
+
+def MaxEA(): return get_inf_attr(ida_ida.INF_MAX_EA)
+
+
+def Comment(ea): return ida_bytes.get_cmt(ea, 0)
+
+
+def RptCmt(ea): return ida_bytes.get_cmt(ea, 1)
+
 
 initialized = False
 BPNORMAL = 0
@@ -62,14 +59,14 @@ def Comments():
 
 
 def Breakpoints():
-    count = GetBptQty()
+    count = ida_dbg.get_bpt_qty()
     for i in range(0, count):
-        ea = GetBptEA(i)
+        ea = get_bpt_ea(i)
         bpt = idaapi.bpt_t()
         if not idaapi.get_bpt(ea, bpt):
             continue
         if bpt.type & BPT_SOFT != 0:
-            yield (ea, BPNORMAL, 0, Word(ea))
+            yield (ea, BPNORMAL, 0, ida_bytes.get_wide_word(ea))
         else:
             bptype = BPNORMAL if bpt.type == BPT_DEFAULT else BPHARDWARE
             hwtype = {
@@ -98,11 +95,11 @@ def do_import():
     module = idaapi.get_root_filename().lower()
     base = idaapi.get_imagebase()
 
-    file = AskFile(0, "x64dbg database|%s" % get_file_mask(),
-                   "Import database")
+    file = ida_kernwin.ask_file(0, "x64dbg database|{}".format(get_file_mask()),
+                                "Import database")
     if not file:
         return
-    print "Importing database %s" % file
+    print("Importing database {}".format(file))
 
     with open(file) as dbdata:
         db = json.load(dbdata)
@@ -115,11 +112,11 @@ def do_import():
                 continue
             ea = int(label["address"], 16) + base
             name = label["text"]
-            MakeNameEx(ea, str(name), 0)
+            ida_name.set_name(ea, str(name), 0)
             count += 1
         except:
             pass
-    print "%d/%d label(s) imported" % (count, len(labels))
+    print("{:d}/{:d} label(s) imported".format(count, len(labels)))
 
     count = 0
     comments = db.get("comments", [])
@@ -129,11 +126,11 @@ def do_import():
                 continue
             ea = int(comment["address"], 16) + base
             name = comment["text"]
-            MakeRptCmt(ea, str(name))
+            ida_bytes.set_cmt(ea, str(name), 1)
             count += 1
         except:
             pass
-    print "%d/%d comment(s) imported" % (count, len(comments))
+    print("{:d}/{:d} comment(s) imported".format(count, len(comments)))
 
     count = 0
     breakpoints = db.get("breakpoints", [])
@@ -145,7 +142,7 @@ def do_import():
             bptype = breakpoint["type"]
             if bptype == BPNORMAL:
                 count += 1
-                AddBptEx(ea, 1, BPT_DEFAULT)
+                ida_dbg.add_bpt(ea, 1, BPT_DEFAULT)
             elif bptype == BPHARDWARE:
                 titantype = int(breakpoint["titantype"], 16)
                 hwtype = (titantype >> 4) & 0xF
@@ -169,12 +166,12 @@ def do_import():
                 else:
                     continue
                 count += 1
-                AddBptEx(ea, hwsize, hwtype)
+                ida_dbg.add_bpt(ea, hwsize, hwtype)
         except:
             pass
-    print "%d/%d breakpoint(s) imported" % (count, len(breakpoints))
+    print("{:d}/{:d} breakpoint(s) imported".format(count, len(breakpoints)))
 
-    print "Done!"
+    print("Done!")
 
 
 def do_export():
@@ -182,43 +179,44 @@ def do_export():
     module = idaapi.get_root_filename().lower()
     base = idaapi.get_imagebase()
 
-    file = AskFile(1, "x64dbg database|%s" % get_file_mask(),
-                   "Export database")
+    file = ida_kernwin.ask_file(1, "x64dbg database|{}".format(get_file_mask()),
+                                "Export database")
     if not file:
         return
-    print "Exporting database %s" % file
+    print("Exporting database {}".format(file))
 
     db["labels"] = [{
         "text": name,
         "manual": False,
         "module": module,
-        "address": "0x%X" % (ea - base)
-    } for (ea, name) in Names()]
-    print "%d label(s) exported" % len(db["labels"])
+        "address": "{:#x}".format(ea - base)
+    } for (ea, name) in idautils.Names()]
+    print("{:d} label(s) exported".format(len(db["labels"])))
 
     db["comments"] = [{
         "text": comment.replace("{", "{{").replace("}", "}}"),
         "manual": False,
         "module": module,
-        "address": "0x%X" % (ea - base)
+        "address": "{:#x}".format((ea - base))
     } for (ea, comment) in Comments()]
-    print "%d comment(s) exported" % len(db["comments"])
+    print("{:d} comment(s) exported".format(len(db["comments"])))
 
     db["breakpoints"] = [{
-        "address": "0x%X" % (ea - base),
+        "address": "{:#x}".format(ea - base),
         "enabled": True,
         "type": bptype,
-        "titantype": "0x%X" % titantype,
-        "oldbytes": "0x%X" % oldbytes,
+        "titantype": "{:#x}".format(titantype),
+        "oldbytes": "{:#x}".format(oldbytes),
         "module": module,
     } for (ea, bptype, titantype, oldbytes) in Breakpoints()]
-    print "%d breakpoint(s) exported" % len(db["breakpoints"])
+    print("{:d} breakpoint(s) exported".format(len(db["breakpoints"])))
 
     with open(file, "w") as outfile:
         json.dump(db, outfile, indent=1)
-    print "Done!"
+    print("Done!")
 
-try: #we try because of ida versions below 6.8, and write action handlers below
+
+try:  # we try because of ida versions below 6.8, and write action handlers below
     class AboutHandler(idaapi.action_handler_t):
         def __init__(self):
             idaapi.action_handler_t.__init__(self)
@@ -277,7 +275,7 @@ except AttributeError:
 
 class x64dbg_plugin_t(idaapi.plugin_t):
     comment = "Official x64dbg plugin for IDA Pro"
-    version = "v1.0"
+    version = "v2.0"
     website = "https://github.com/x64dbg/x64dbgida"
     help = ""
     wanted_name = "x64dbgida"
@@ -287,26 +285,10 @@ class x64dbg_plugin_t(idaapi.plugin_t):
     def init(self):
         global initialized
 
-        if initialized == False:
+        if initialized is False:
             initialized = True
-            if idaapi.IDA_SDK_VERSION <= 695 and idaapi.IDA_SDK_VERSION >= 680:
-                menu = idaapi.add_menu_item("Edit/x64dbgida/", "About", "", 0,
-                                        self.about, None)
-                idaapi.add_menu_item("Edit/x64dbgida/", "Export database", "",
-                                     0, self.exportdb, None)
-                idaapi.add_menu_item("Edit/x64dbgida/",
-                                     "Import (uncompressed) database", "", 0,
-                                     self.importdb, None)
-            elif idaapi.IDA_SDK_VERSION < 680:
-                idaapi.add_menu_item("File/Produce file/",
-                                     "Export x64dbg database", "", 0,
-                                     self.exportdb, None)
-                idaapi.add_menu_item("File/Load file/",
-                                     "Import x64dbg database", "", 0,
-                                     self.importdb, None)
-
             if idaapi.IDA_SDK_VERSION >= 700:
-                #populating action menus
+                # populating action menus
                 action_desc = idaapi.action_desc_t(
                     'my:aboutaction',  # The action name. This acts like an ID and must be unique
                     'About!',  # The action text.
@@ -353,15 +335,13 @@ class x64dbg_plugin_t(idaapi.plugin_t):
                     idaapi.SETMENU_APP)
 
             else:
-                pass
+                print("Use version 1.0")
 
         return idaapi.PLUGIN_KEEP
-
 
     def run(self, arg):
         self.about()
         pass
-
 
     def term(self):
         return
@@ -371,19 +351,19 @@ class x64dbg_plugin_t(idaapi.plugin_t):
             do_import()
         except:
             traceback.print_exc()
-            print "Error importing database..."
+            print("Error importing database...")
 
     def exportdb(self):
         try:
             do_export()
         except:
             traceback.print_exc()
-            print "Error exporting database..."
+            print("Error exporting database...")
 
     def about(self):
-        print self.wanted_name + " " + self.version
-        print self.comment
-        print self.website
+        print("{} {}".format(self.wanted_name, self.version))
+        print(self.comment)
+        print(self.website)
 
 
 def PLUGIN_ENTRY():
