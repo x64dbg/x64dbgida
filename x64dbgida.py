@@ -1,4 +1,5 @@
 import idaapi
+
 # in the future, maybe change for
 # ida_idp.IDP_INTERFACE_VERSION >= 700
 if idaapi.IDA_SDK_VERSION >= 700:
@@ -50,12 +51,13 @@ def Comments():
             cmt += cmt1
         if cmt2:
             cmt += cmt2
-        if (cmt):
-            skip = ea == lastea + 1 and cmt == lastcmt
-            lastea = ea
-            lastcmt = cmt
-            if not skip:
-                yield (ea, cmt)
+        if not cmt:
+            continue
+        skip = ea == lastea + 1 and cmt == lastcmt
+        lastea = ea
+        lastcmt = cmt
+        if not skip:
+            yield ea, cmt
 
 
 def Breakpoints():
@@ -66,37 +68,32 @@ def Breakpoints():
         if not idaapi.get_bpt(ea, bpt):
             continue
         if bpt.type & BPT_SOFT != 0:
-            yield (ea, BPNORMAL, 0, ida_bytes.get_wide_word(ea))
-        else:
-            bptype = BPNORMAL if bpt.type == BPT_DEFAULT else BPHARDWARE
-            hwtype = {
-                BPT_WRITE: UE_HARDWARE_WRITE,
-                BPT_RDWR: UE_HARDWARE_READWRITE,
-                BPT_EXEC: UE_HARDWARE_EXECUTE
-            }[bpt.type]
-            hwsize = {
-                1: UE_HARDWARE_SIZE_1,
-                2: UE_HARDWARE_SIZE_2,
-                4: UE_HARDWARE_SIZE_4,
-                8: UE_HARDWARE_SIZE_8,
-            }[bpt.size]
-            yield (ea, bptype, (hwtype << 4 | hwsize), 0)
+            yield ea, BPNORMAL, 0, ida_bytes.get_wide_word(ea)
+            continue
+        bptype = BPNORMAL if bpt.type == BPT_DEFAULT else BPHARDWARE
+        hwtype = {
+            BPT_WRITE: UE_HARDWARE_WRITE,
+            BPT_RDWR: UE_HARDWARE_READWRITE,
+            BPT_EXEC: UE_HARDWARE_EXECUTE
+        }[bpt.type]
+        hwsize = {
+            1: UE_HARDWARE_SIZE_1,
+            2: UE_HARDWARE_SIZE_2,
+            4: UE_HARDWARE_SIZE_4,
+            8: UE_HARDWARE_SIZE_8,
+        }[bpt.size]
+        yield ea, bptype, (hwtype << 4 | hwsize), 0
 
 
 def get_file_mask():
-    mask = "*.dd32"
-    if idaapi.get_inf_structure().is_64bit():
-        mask = "*.dd64"
-    return mask
+    return "*.dd64" if idaapi.get_inf_structure().is_64bit() else "*.dd32"
 
 
 def do_import():
-    db = {}
     module = idaapi.get_root_filename().lower()
     base = idaapi.get_imagebase()
 
-    file = ida_kernwin.ask_file(0, "x64dbg database|{}".format(get_file_mask()),
-                                "Import database")
+    file = ida_kernwin.ask_file(0, "x64dbg database|{}".format(get_file_mask()), "Import database")
     if not file:
         return
     print("Importing database {}".format(file))
@@ -179,8 +176,7 @@ def do_export():
     module = idaapi.get_root_filename().lower()
     base = idaapi.get_imagebase()
 
-    file = ida_kernwin.ask_file(1, "x64dbg database|{}".format(get_file_mask()),
-                                "Export database")
+    file = ida_kernwin.ask_file(1, "x64dbg database|{}".format(get_file_mask()), "Export database")
     if not file:
         return
     print("Exporting database {}".format(file))
@@ -221,39 +217,31 @@ try:  # we try because of ida versions below 6.8, and write action handlers belo
         def __init__(self):
             idaapi.action_handler_t.__init__(self)
 
-        # Say hello when invoked.
         def activate(self, ctx):
             a = x64dbg_plugin_t()
             a.about()
             return 1
 
-        # This action is always available.
         def update(self, ctx):
             return idaapi.AST_ENABLE_ALWAYS
 except AttributeError:
     pass
-
 
 try:
     class EksportHandler(idaapi.action_handler_t):
         def __init__(self):
             idaapi.action_handler_t.__init__(self)
 
-        # Say hello when invoked.
         def activate(self, ctx):
             b = x64dbg_plugin_t()
             b.exportdb()
             return 1
 
-        # This action is always available.
         def update(self, ctx):
             return idaapi.AST_ENABLE_ALWAYS
 
-            def update(self, ctx):
-                return idaapi.AST_ENABLE_ALWAYS
 except AttributeError:
     pass
-
 
 try:
     class ImportHandler(idaapi.action_handler_t):
@@ -287,57 +275,40 @@ class x64dbg_plugin_t(idaapi.plugin_t):
 
         if initialized is False:
             initialized = True
-            if idaapi.IDA_SDK_VERSION >= 700:
-                # populating action menus
-                action_desc = idaapi.action_desc_t(
-                    'my:aboutaction',  # The action name. This acts like an ID and must be unique
-                    'About!',  # The action text.
-                    AboutHandler(),  # The action handler.
-                    '',  # Optional: the action shortcut
-                    'About X64dbg ida',  # Optional: the action tooltip (available in menus/toolbar)
-                    )  # Optional: the action icon (shows when in menus/toolbars) use numbers 1-255
-
-                # Register the action
-                idaapi.register_action(action_desc)
-                idaapi.attach_action_to_menu(
-                    'Edit/x64dbgida/',
-                    'my:aboutaction',
-                    idaapi.SETMENU_APP)
-
-                action_desc = idaapi.action_desc_t(
-                    'my:eksportaction',
-                    'Export x64dbg database',
-                    EksportHandler(),
-                    '',
-                    'Export x64dbg database',
-                    )
-
-                # Register the action
-                idaapi.register_action(action_desc)
-                idaapi.attach_action_to_menu(
-                    'Edit/x64dbgida/',
-                    'my:eksportaction',
-                    idaapi.SETMENU_APP)
-
-                action_desc = idaapi.action_desc_t(
-                    'my:importaction',
-                    'Import (uncompressed) database',
-                    ImportHandler(),
-                    '',
-                    'Import (uncompressed) database',
-                    )
-
-                # Register the action
-                idaapi.register_action(action_desc)
-                idaapi.attach_action_to_menu(
-                    'Edit/x64dbgida/',
-                    'my:importaction',
-                    idaapi.SETMENU_APP)
-
-            else:
-                print("Use version 1.0")
+            self._initialize()
 
         return idaapi.PLUGIN_KEEP
+
+    def _initialize(self):
+        if idaapi.IDA_SDK_VERSION < 700:
+            print("Use version 1.0")
+            return
+
+        menu_path = 'Edit/x64dbgida/'
+
+        # populating action menus
+        action = 'my:aboutaction'
+        action_desc = idaapi.action_desc_t(
+            action,  # The action name. This acts like an ID and must be unique
+            'About!',  # The action text.
+            AboutHandler(),  # The action handler.
+            '',  # Optional: the action shortcut
+            'About X64dbg ida',  # Optional: the action tooltip (available in menus/toolbar)
+        )  # Optional: the action icon (shows when in menus/toolbars) use numbers 1-255
+        idaapi.register_action(action_desc)
+        idaapi.attach_action_to_menu(menu_path, action, idaapi.SETMENU_APP)
+
+        label = 'Export x64dbg database'
+        action = 'my:eksportaction'
+        action_desc = idaapi.action_desc_t(action, label, EksportHandler(), '', label)
+        idaapi.register_action(action_desc)
+        idaapi.attach_action_to_menu(menu_path, action, idaapi.SETMENU_APP)
+
+        label = 'Import (uncompressed) database'
+        action = 'my:importaction'
+        action_desc = idaapi.action_desc_t(action, label, ImportHandler(), '', label)
+        idaapi.register_action(action_desc)
+        idaapi.attach_action_to_menu(menu_path, action, idaapi.SETMENU_APP)
 
     def run(self, arg):
         self.about()
