@@ -38,6 +38,7 @@ UE_HARDWARE_SIZE_1 = 7
 UE_HARDWARE_SIZE_2 = 8
 UE_HARDWARE_SIZE_4 = 9
 UE_HARDWARE_SIZE_8 = 10
+LAST_EXPORT_FILE_NAME = None
 
 
 def Comments():
@@ -171,15 +172,20 @@ def do_import():
     print("Done!")
 
 
-def do_export():
+def do_export(re_export=False):
+    global LAST_EXPORT_FILE_NAME
     db = {}
     module = idaapi.get_root_filename().lower()
     base = idaapi.get_imagebase()
 
-    file = ida_kernwin.ask_file(1, "x64dbg database|{}".format(get_file_mask()), "Export database")
+    if re_export and LAST_EXPORT_FILE_NAME is not None:
+        file = LAST_EXPORT_FILE_NAME
+    else:
+        file = ida_kernwin.ask_file(1, "x64dbg database|{}".format(get_file_mask()), "Export database")
     if not file:
         return
     print("Exporting database {}".format(file))
+    LAST_EXPORT_FILE_NAME = file
 
     db["labels"] = [{
         "text": name,
@@ -234,7 +240,7 @@ try:
 
         def activate(self, ctx):
             b = x64dbg_plugin_t()
-            b.exportdb()
+            b.exportdb(False)
             return 1
 
         def update(self, ctx):
@@ -242,6 +248,20 @@ try:
 
 except AttributeError:
     pass
+
+
+class ReeksportHandler(idaapi.action_handler_t):
+    def __init__(self):
+        idaapi.action_handler_t.__init__(self)
+
+    def activate(self, ctx):
+        b = x64dbg_plugin_t()
+        b.exportdb(True)
+        return 1
+
+    def update(self, ctx):
+        return idaapi.AST_ENABLE_ALWAYS
+
 
 try:
     class ImportHandler(idaapi.action_handler_t):
@@ -304,6 +324,12 @@ class x64dbg_plugin_t(idaapi.plugin_t):
         idaapi.register_action(action_desc)
         idaapi.attach_action_to_menu(menu_path, action, idaapi.SETMENU_APP)
 
+        label = 'Re-Export database'
+        action = 'my:reeksportaction'
+        action_desc = idaapi.action_desc_t(action, label, ReeksportHandler(), 'Ctrl+Alt+Shift+q', label)
+        idaapi.register_action(action_desc)
+        idaapi.attach_action_to_menu(menu_path, action, idaapi.SETMENU_APP)
+
         label = 'Import (uncompressed) database'
         action = 'my:importaction'
         action_desc = idaapi.action_desc_t(action, label, ImportHandler(), '', label)
@@ -324,9 +350,9 @@ class x64dbg_plugin_t(idaapi.plugin_t):
             traceback.print_exc()
             print("Error importing database...")
 
-    def exportdb(self):
+    def exportdb(self, re_export):
         try:
-            do_export()
+            do_export(re_export)
         except:
             traceback.print_exc()
             print("Error exporting database...")
