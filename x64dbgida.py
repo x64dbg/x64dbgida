@@ -99,7 +99,7 @@ def do_import():
         return
     print("Importing database {}".format(file))
 
-    with open(file) as dbdata:
+    with open(file, "r", encoding="utf-8") as dbdata:
         db = json.load(dbdata)
 
     count = 0
@@ -213,7 +213,7 @@ def do_export(re_export=False):
     } for (ea, bptype, titantype, oldbytes) in Breakpoints()]
     print("{:d} breakpoint(s) exported".format(len(db["breakpoints"])))
 
-    with open(file, "w") as outfile:
+    with open(file, "w", encoding="utf-8") as outfile:
         json.dump(db, outfile, indent=1)
     print("Done!")
 
