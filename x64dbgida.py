@@ -188,27 +188,27 @@ def do_export(re_export=False):
     LAST_EXPORT_FILE_NAME = file
 
     db["labels"] = [{
-        "text": name,
-        "manual": False,
         "module": module,
-        "address": "{:#x}".format(ea - base)
+        "address": "{:#x}".format(ea - base),
+        "manual": False,
+        "text": name
     } for (ea, name) in idautils.Names()]
     print("{:d} label(s) exported".format(len(db["labels"])))
 
     db["comments"] = [{
-        "text": comment.replace("{", "{{").replace("}", "}}"),
-        "manual": False,
         "module": module,
-        "address": "{:#x}".format((ea - base))
+        "address": "{:#x}".format((ea - base)),
+        "manual": False,
+        "text": comment.replace("{", "{{").replace("}", "}}")
     } for (ea, comment) in Comments()]
     print("{:d} comment(s) exported".format(len(db["comments"])))
 
     db["breakpoints"] = [{
         "address": "{:#x}".format(ea - base),
         "enabled": True,
+        "oldbytes": "{:#x}".format(oldbytes),
         "type": bptype,
         "titantype": "{:#x}".format(titantype),
-        "oldbytes": "{:#x}".format(oldbytes),
         "module": module,
     } for (ea, bptype, titantype, oldbytes) in Breakpoints()]
     print("{:d} breakpoint(s) exported".format(len(db["breakpoints"])))
